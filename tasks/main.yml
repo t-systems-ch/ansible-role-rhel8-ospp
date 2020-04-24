@@ -2818,10 +2818,10 @@
   - CCE-82211-4
   - NIST-800-53-SC-39
 
-- name: get current kernel parameters
-  command: /usr/bin/grub2-editenv - list
-  register: kernelopts
-  changed_when: false
+- name: check vsyscall argument exists
+  command: grep 'GRUB_CMDLINE_LINUX.*vsyscall=' /etc/default/grub
+  failed_when: False
+  register: argcheck
   when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - restrict_strategy | bool
@@ -2839,12 +2839,56 @@
   - reboot_required
   - CCE-80946-7
 
-- name: Update the bootloader menu
-  command: /usr/bin/grub2-editenv - set "{{ item }} vsyscall=none"
-  with_items: '{{ kernelopts.stdout_lines | select(''match'', ''^kernelopts.*'') | list }}'
+- name: replace existing vsyscall argument
+  replace:
+      path: /etc/default/grub
+      regexp: 'vsyscall=\S*'
+      replace: 'vsyscall=none'
+      backup: yes
   when:
-  - kernelopts.stdout_lines is defined
-  - kernelopts.stdout_lines | length > 0
+  - argcheck.rc == 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - grub2_vsyscall_argument | bool
+  - low_disruption | bool
+  tags:
+  - grub2_vsyscall_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80946-7
+
+- name: add vsyscall argument
+  replace:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=.*)"'
+      replace: '\1 vsyscall=none"'
+  when:
+  - argcheck.rc != 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - grub2_vsyscall_argument | bool
+  - low_disruption | bool
+  tags:
+  - grub2_vsyscall_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80946-7
+
+- name: update bootloader menu
+  command: /sbin/grubby --update-kernel=ALL --args="vsyscall=none"
+  when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - restrict_strategy | bool
   - reboot_required | bool
@@ -3002,10 +3046,12 @@
   - CCE-80915-2
   - NIST-800-53-SC-39
 
-- name: get current kernel parameters
-  command: /usr/bin/grub2-editenv - list
-  register: kernelopts
-  changed_when: false
+# slub_debug=P
+
+- name: check slub_debug argument exists
+  command: grep 'GRUB_CMDLINE_LINUX.*slub_debug=' /etc/default/grub
+  failed_when: False
+  register: argcheck
   when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - grub2_slub_debug_argument | bool
@@ -3023,12 +3069,14 @@
   - reboot_required
   - CCE-80945-9
 
-- name: Update the bootloader menu
-  command: /usr/bin/grub2-editenv - set "{{ item }} slub_debug=P"
-  with_items: '{{ kernelopts.stdout_lines | select(''match'', ''^kernelopts.*'') | list }}'
+- name: replace existing slub_debug argument
+  replace:
+      path: /etc/default/grub
+      regexp: 'slub_debug=\S*'
+      replace: 'slub_debug=P'
+      backup: yes
   when:
-  - kernelopts.stdout_lines is defined
-  - kernelopts.stdout_lines | length > 0
+  - argcheck.rc == 0
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - grub2_slub_debug_argument | bool
   - restrict_strategy | bool
@@ -3045,10 +3093,52 @@
   - reboot_required
   - CCE-80945-9
 
-- name: get current kernel parameters
-  command: /usr/bin/grub2-editenv - list
-  register: kernelopts
-  changed_when: false
+- name: add slub_debug argument
+  replace:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=.*)"'
+      replace: '\1 slub_debug=P"'
+  when:
+  - argcheck.rc != 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - grub2_slub_debug_argument | bool
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - low_disruption | bool
+  tags:
+  - grub2_slub_debug_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80945-9
+
+- name: update bootloader menu
+  command: /sbin/grubby --update-kernel=ALL --args="slub_debug=P"
+  when:
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - grub2_slub_debug_argument | bool
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - low_disruption | bool
+  tags:
+  - grub2_slub_debug_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80945-9
+
+- name: check  page_poison argument exists
+  command: grep 'GRUB_CMDLINE_LINUX.* page_poison=' /etc/default/grub
+  failed_when: False
+  register: argcheck
   when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - restrict_strategy | bool
@@ -3066,12 +3156,56 @@
   - reboot_required
   - CCE-80944-2
 
-- name: Update the bootloader menu
-  command: /usr/bin/grub2-editenv - set "{{ item }} page_poison=1"
-  with_items: '{{ kernelopts.stdout_lines | select(''match'', ''^kernelopts.*'') | list }}'
+- name: replace existing  page_poison argument
+  replace:
+      path: /etc/default/grub
+      regexp: ' page_poison=\S*'
+      replace: 'page_poison=1'
+      backup: yes
   when:
-  - kernelopts.stdout_lines is defined
-  - kernelopts.stdout_lines | length > 0
+  - argcheck.rc == 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - grub2_page_poison_argument | bool
+  - low_disruption | bool
+  tags:
+  - grub2_page_poison_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80944-2
+
+- name: add  page_poison argument
+  replace:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=.*)"'
+      replace: '\1 page_poison=1"'
+  when:
+  - argcheck.rc != 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - grub2_page_poison_argument | bool
+  - low_disruption | bool
+  tags:
+  - grub2_page_poison_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80944-2
+
+- name: update bootloader menu
+  command: /sbin/grubby --update-kernel=ALL --args="page_poison=1"
+  when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - restrict_strategy | bool
   - reboot_required | bool
@@ -4157,10 +4291,10 @@
   - PCI-DSS-Req-10.1
   - CJIS-5.4.1.1
 
-- name: get current kernel parameters
-  command: /usr/bin/grub2-editenv - list
-  register: kernelopts
-  changed_when: false
+- name: check audit_backlog_limit argument exists
+  command: grep 'GRUB_CMDLINE_LINUX.*audit_backlog_limit=' /etc/default/grub
+  failed_when: False
+  register: argcheck
   when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - grub2_audit_backlog_limit_argument | bool
@@ -4178,12 +4312,14 @@
   - reboot_required
   - CCE-80943-4
 
-- name: Update the bootloader menu
-  command: /usr/bin/grub2-editenv - set "{{ item }} audit_backlog_limit=8192"
-  with_items: '{{ kernelopts.stdout_lines | select(''match'', ''^kernelopts.*'') | list }}'
+- name: replace existing audit_backlog_limit argument
+  replace:
+      path: /etc/default/grub
+      regexp: 'audit_backlog_limit=\S*'
+      replace: 'audit_backlog_limit=8192'
+      backup: yes
   when:
-  - kernelopts.stdout_lines is defined
-  - kernelopts.stdout_lines | length > 0
+  - argcheck.rc == 0
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - grub2_audit_backlog_limit_argument | bool
   - restrict_strategy | bool
@@ -4200,10 +4336,52 @@
   - reboot_required
   - CCE-80943-4
 
-- name: get current kernel parameters
-  command: /usr/bin/grub2-editenv - list
-  register: kernelopts
-  changed_when: false
+- name: add audit_backlog_limit argument
+  replace:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=.*)"'
+      replace: '\1 audit_backlog_limit=8192"'
+  when:
+  - argcheck.rc != 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - grub2_audit_backlog_limit_argument | bool
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - low_disruption | bool
+  tags:
+  - grub2_audit_backlog_limit_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80943-4
+
+- name: update bootloader menu
+  command: /sbin/grubby --update-kernel=ALL --args="audit_backlog_limit=8192"
+  when:
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - grub2_audit_backlog_limit_argument | bool
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - low_disruption | bool
+  tags:
+  - grub2_audit_backlog_limit_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80943-4
+
+- name: check audit argument exists
+  command: grep 'GRUB_CMDLINE_LINUX.*audit=' /etc/default/grub
+  failed_when: False
+  register: argcheck
   when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - grub2_audit_argument | bool
@@ -4234,12 +4412,82 @@
   - PCI-DSS-Req-10.3
   - CJIS-5.4.1.1
 
-- name: Update the bootloader menu
-  command: /usr/bin/grub2-editenv - set "{{ item }} audit=1"
-  with_items: '{{ kernelopts.stdout_lines | select(''match'', ''^kernelopts.*'') | list }}'
+- name: replace existing audit argument
+  replace:
+      path: /etc/default/grub
+      regexp: 'audit=\S*'
+      replace: 'audit=1'
+      backup: yes
   when:
-  - kernelopts.stdout_lines is defined
-  - kernelopts.stdout_lines | length > 0
+  - argcheck.rc == 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - grub2_audit_argument | bool
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - low_disruption | bool
+  tags:
+  - grub2_audit_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80825-3
+  - NIST-800-53-AC-17(1)
+  - NIST-800-53-AU-14(1)
+  - NIST-800-53-AU-1(b)
+  - NIST-800-53-AU-2(a)
+  - NIST-800-53-AU-2(c)
+  - NIST-800-53-AU-2(d)
+  - NIST-800-53-AU-10
+  - NIST-800-53-AU-12
+  - NIST-800-53-IR-5
+  - NIST-800-53-AU-12(1)
+  - NIST-800-171-3.3.1
+  - PCI-DSS-Req-10.3
+  - CJIS-5.4.1.1
+
+- name: add audit argument
+  replace:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=.*)"'
+      replace: '\1 audit=1"'
+  when:
+  - argcheck.rc != 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - grub2_audit_argument | bool
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - medium_severity | bool
+  - medium_complexity | bool
+  - low_disruption | bool
+  tags:
+  - grub2_audit_argument
+  - medium_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-80825-3
+  - NIST-800-53-AC-17(1)
+  - NIST-800-53-AU-14(1)
+  - NIST-800-53-AU-1(b)
+  - NIST-800-53-AU-2(a)
+  - NIST-800-53-AU-2(c)
+  - NIST-800-53-AU-2(d)
+  - NIST-800-53-AU-10
+  - NIST-800-53-AU-12
+  - NIST-800-53-IR-5
+  - NIST-800-53-AU-12(1)
+  - NIST-800-171-3.3.1
+  - PCI-DSS-Req-10.3
+  - CJIS-5.4.1.1
+
+- name: update bootloader menu
+  command: /sbin/grubby --update-kernel=ALL --args="audit=1"
+  when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - grub2_audit_argument | bool
   - restrict_strategy | bool
@@ -5718,10 +5966,10 @@
   - low_disruption | bool
   - low_complexity | bool
 
-- name: get current kernel parameters
-  command: /usr/bin/grub2-editenv - list
-  register: kernelopts
-  changed_when: false
+- name: check  pti argument exists
+  command: grep 'GRUB_CMDLINE_LINUX.* pti=' /etc/default/grub
+  failed_when: False
+  register: argcheck
   when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - grub2_pti_argument | bool
@@ -5739,12 +5987,56 @@
   - reboot_required
   - CCE-82194-2
 
-- name: Update the bootloader menu
-  command: /usr/bin/grub2-editenv - set "{{ item }} pti=on"
-  with_items: '{{ kernelopts.stdout_lines | select(''match'', ''^kernelopts.*'') | list }}'
+- name: replace existing  pti argument
+  replace:
+      path: /etc/default/grub
+      regexp: ' pti=\S*'
+      replace: 'pti=on'
+      backup: yes
   when:
-  - kernelopts.stdout_lines is defined
-  - kernelopts.stdout_lines | length > 0
+  - argcheck.rc == 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - grub2_pti_argument | bool
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - high_severity | bool
+  - medium_complexity | bool
+  - low_disruption | bool
+  tags:
+  - grub2_pti_argument
+  - high_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-82194-2
+
+- name: add  pti argument
+  replace:
+      path: /etc/default/grub
+      regexp: '(GRUB_CMDLINE_LINUX=.*)"'
+      replace: '\1 pti=on"'
+  when:
+  - argcheck.rc != 0
+  - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
+  - grub2_pti_argument | bool
+  - restrict_strategy | bool
+  - reboot_required | bool
+  - high_severity | bool
+  - medium_complexity | bool
+  - low_disruption | bool
+  tags:
+  - grub2_pti_argument
+  - high_severity
+  - restrict_strategy
+  - medium_complexity
+  - low_disruption
+  - reboot_required
+  - CCE-82194-2
+
+- name: update bootloader menu
+  command: /sbin/grubby --update-kernel=ALL --args="pti=on"
+  when:
   - ansible_virtualization_role != "guest" or ansible_virtualization_type != "docker"
   - grub2_pti_argument | bool
   - restrict_strategy | bool
